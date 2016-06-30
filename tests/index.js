@@ -224,7 +224,7 @@ tape('single concurrent call', function (t) {
     child(10, function () {
       if (++cbc == 10) {
         var time = Date.now() - start
-        t.ok(time > 100 && time < 190, 'processed tasks sequentially (' + time + 'ms)')
+        t.ok(time > 100 && time < 200, 'processed tasks sequentially (' + time + 'ms)')
         workerFarm.end(child, function () {
           t.ok(true, 'workerFarm ended')
         })
@@ -453,4 +453,91 @@ tape('test max retries after process terminate', function (t) {
     fs.unlinkSync(filepath2)
     t.ok(true, 'workerFarm ended')
   })
+})
+
+// a child where module.exports = function with revive...
+tape('test revive method when nested', function (t) {
+  t.plan(4)
+
+  var child = workerFarm({ maxConcurrentWorkers: 10 }, childPath)
+    , pids  = []
+    , i     = 10
+
+  while (i--) {
+    child(1, function (err, pid) {
+      pids.push(pid)
+      if (pids.length == 10) {
+        t.equal(10, uniq(pids).length, 'pids are all the same (by pid)')
+      } else if (pids.length > 10)
+        t.fail('too many callbacks!')
+    })
+  }
+
+
+  workerFarm.end(child, function beforeRevive () {
+    t.ok(true, 'workerFarm first end')
+
+    workerFarm.revive(child);
+    var pids2  = []
+    i     = 10
+
+    while (i--) {
+      child(1, function (err, pid) {
+        pids2.push(pid)
+        if (pids2.length == 10) {
+          t.equal(10, uniq(pids2).length, 'pids are all the same (by pid)')
+        } else if (pids2.length > 10)
+          t.fail('too many callbacks!')
+      })
+    }
+
+    workerFarm.end(child, function afterRevive(){
+      t.ok(true, 'workerFarm second end')
+    })
+
+  })
+
+})
+
+tape('test revive method when not nested', function (t) {
+  t.plan(4)
+
+  var child = workerFarm({ maxConcurrentWorkers: 20 }, childPath)
+    , pids  = []
+    , i     = 10
+
+  while (i--) {
+    child(1, function (err, pid) {
+      pids.push(pid)
+      if (pids.length == 10) {
+        t.equal(10, uniq(pids).length, 'pids are all the same (by pid)')
+      } else if (pids.length > 10)
+        t.fail('too many callbacks!')
+    })
+  }
+
+
+  workerFarm.end(child, function beforeRevive () {
+    t.ok(true, 'workerFarm first end')
+  })
+
+  workerFarm.revive(child);
+
+  var pids2  = [],
+    j     = 10
+
+  while (j--) {
+    child(1, function (err, pid) {
+      pids2.push(pid)
+      if (pids2.length == 10) {
+        t.equal(10, uniq(pids2).length, 'pids are all the same (by pid)')
+      } else if (pids2.length > 10)
+        t.fail('too many callbacks!')
+    })
+  }
+
+  workerFarm.end(child, function afterRevive(){
+    t.ok(true, 'workerFarm second end')
+  })
+
 })
