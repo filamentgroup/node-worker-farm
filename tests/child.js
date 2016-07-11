@@ -17,7 +17,19 @@ module.exports.killable = function (id, callback) {
   callback(null, id, process.pid)
 }
 
-module.exports.err = function (type, message, callback) {
+module.exports.err = function (type, message, data, callback) {
+  if (typeof data == 'function') {
+    callback = data
+    data = null
+  } else {
+    var err = new Error(message)
+    Object.keys(data).forEach(function(key) {
+      err[key] = data[key]
+    })
+    callback(err)
+    return
+  }
+
   if (type == 'TypeError')
     return callback(new TypeError(message))
   callback(new Error(message))
